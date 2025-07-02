@@ -16,11 +16,11 @@ if "feature_data" not in st.session_state:
             "name": f"Feature {i+1}",
             "usl": None,
             "lsl": None,
-            "values": [""]
+            "values": ["" for _ in range(MAX_MEASURE)]
         } for i in range(NUM_FEATURES)
     ]
 
-st.title("📏 Step-by-step Measurement Input Tool (No +/-, Add row by button)")
+st.title("📏 Step-by-step Measurement Input Tool (30 fields by default)")
 
 tab1, tab2 = st.tabs(["Input", "Statistics & Chart"])
 
@@ -48,27 +48,29 @@ with tab1:
         st.markdown("#### Measurement Values")
         values = feature["values"]
 
+        # --- 入力欄のループ ---
         for row in range(len(values)):
-            input_cols = st.columns([1, 4])
+            input_cols = st.columns([1, 1, 4])  # No, Judge, Value
+            input_cols[0].markdown(f"No.{row+1}")
             input_key = f"feat{idx}_val{row}"
             val = st.session_state.get(input_key, values[row])
 
-            # 数値入力欄（+/-なし）
-            input_val = input_cols[1].text_input(
+            # 数値入力欄
+            input_val = input_cols[2].text_input(
                 f"{feature['name']} #{row+1}",
                 value=val,
                 key=input_key,
                 label_visibility="collapsed"
             )
 
-            # 入力値を保存
+            # 値を保存
             feature["values"][row] = input_val
 
             # OK/NG判定またはエラー
             if input_val.strip() == "":
-                input_cols[0].write("")
+                input_cols[1].write("")
             elif not re.match(r'^-?\d+(\.\d+)?$', input_val):
-                input_cols[0].markdown(
+                input_cols[1].markdown(
                     f"<span style='color:red;font-weight:bold'>Error</span>", unsafe_allow_html=True
                 )
             else:
@@ -80,17 +82,17 @@ with tab1:
                     ok = False
                 judge = "OK" if ok else "NG"
                 color = "green" if ok else "red"
-                input_cols[0].markdown(
+                input_cols[1].markdown(
                     f"<span style='color:{color};font-weight:bold'>{judge}</span>", unsafe_allow_html=True
                 )
 
-        # ＋ボタンで入力欄を追加
-        if len(values) < MAX_MEASURE:
+        # ＋ボタンで追加可能（MAX_MEASURE+）
+        if len(values) < 100:  # 上限は任意、必要に応じて調整
             add_key = f"add_row_{idx}"
             if st.button("＋ Add Row", key=add_key):
                 feature["values"].append("")
 
-    st.info("No +/- on input. Click ＋ Add Row to add new input boxes. Enter only numbers.")
+    st.info("30 input fields are shown by default. Click ＋ Add Row to add more. No. is always displayed.")
 
 # ----------- STATISTICS TAB ---------------
 with tab2:
