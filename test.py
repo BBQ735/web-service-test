@@ -4,11 +4,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import io
 import re
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Step-by-step Measurement Input", layout="centered")
 
 NUM_FEATURES = 3
 MAX_MEASURE = 30
+feature_ids = [f"feature{idx+1}" for idx in range(NUM_FEATURES)]
 
 if "feature_data" not in st.session_state:
     st.session_state.feature_data = [
@@ -20,8 +22,25 @@ if "feature_data" not in st.session_state:
         } for i in range(NUM_FEATURES)
     ]
 
-st.title("📏 Step-by-step Measurement Input Tool (30 fields by default)")
+# --- ジャンプボタン（ページ最上部） ---
+jump_cols = st.columns(NUM_FEATURES)
+for idx, fid in enumerate(feature_ids):
+    if jump_cols[idx].button(f"Jump to {st.session_state.feature_data[idx]['name']}"):
+        st.experimental_set_query_params(jump=fid)
+        st.experimental_rerun()
 
+# --- ページロード時にquery_paramsを読んでジャンプする ---
+query = st.experimental_get_query_params()
+if "jump" in query:
+    components.html(f"""
+    <script>
+        document.getElementById('{query['jump'][0]}').scrollIntoView({{behavior: 'instant', block: 'start'}});
+    </script>
+    """, height=0)
+    # ジャンプ後はパラメータをクリア（無限リロード防止）
+    st.experimental_set_query_params()
+
+st.title("📏 Step-by-step Measurement Input Tool (30 fields by default)")
 tab1, tab2 = st.tabs(["Input", "Statistics & Chart"])
 
 with tab1:
@@ -29,6 +48,8 @@ with tab1:
     lot_no = st.text_input("Lot No.", placeholder="e.g. L20240701")
 
     for idx, feature in enumerate(st.session_state.feature_data):
+        # --- 各FeatureのアンカーIDを設置 ---
+        st.markdown(f'<a id="{feature_ids[idx]}"></a>', unsafe_allow_html=True)
         st.markdown(f"---\n### {feature['name']}")
         feature["name"] = st.text_input(
             f"Feature {idx+1} Name", value=feature["name"], key=f"name_{idx}")
@@ -55,18 +76,14 @@ with tab1:
             input_key = f"feat{idx}_val{row}"
             val = st.session_state.get(input_key, values[row])
 
-            # 数値入力欄
             input_val = input_cols[2].text_input(
                 f"{feature['name']} #{row+1}",
                 value=val,
                 key=input_key,
                 label_visibility="collapsed"
             )
-
-            # 値を保存
             feature["values"][row] = input_val
 
-            # OK/NG判定またはエラー
             if input_val.strip() == "":
                 input_cols[1].write("")
             elif not re.match(r'^-?\d+(\.\d+)?$', input_val):
@@ -86,13 +103,13 @@ with tab1:
                     f"<span style='color:{color};font-weight:bold'>{judge}</span>", unsafe_allow_html=True
                 )
 
-        # ＋ボタンで追加可能（MAX_MEASURE+）
-        if len(values) < 100:  # 上限は任意、必要に応じて調整
+        # ＋ボタンで追加可能
+        if len(values) < 100:
             add_key = f"add_row_{idx}"
             if st.button("＋ Add Row", key=add_key):
                 feature["values"].append("")
 
-    st.info("30 input fields are shown by default. Click ＋ Add Row to add more. No. is always displayed.")
+    st.info("30 input fields are shown by default. Click ＋ Add Row to add more. Use Jump buttons for quick scroll.")
 
 # ----------- STATISTICS TAB ---------------
 with tab2:
