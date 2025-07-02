@@ -53,7 +53,7 @@ with tab1:
             input_key = f"feat{idx}_val{row}"
             val = st.session_state.get(input_key, values[row])
 
-            # 入力欄（text_inputで+/-非表示、数字のみ許容）
+            # 数値入力欄（+/-なし）
             input_val = input_cols[1].text_input(
                 f"{feature['name']} #{row+1}",
                 value=val,
@@ -64,7 +64,7 @@ with tab1:
             # 入力値を保存
             feature["values"][row] = input_val
 
-            # 数値化できればOK/NG判定
+            # OK/NG判定またはエラー
             if input_val.strip() == "":
                 input_cols[0].write("")
             elif not re.match(r'^-?\d+(\.\d+)?$', input_val):
@@ -84,7 +84,7 @@ with tab1:
                     f"<span style='color:{color};font-weight:bold'>{judge}</span>", unsafe_allow_html=True
                 )
 
-        # --- +ボタンで新規入力欄追加 ---
+        # ＋ボタンで入力欄を追加
         if len(values) < MAX_MEASURE:
             add_key = f"add_row_{idx}"
             if st.button("＋ Add Row", key=add_key):
@@ -94,7 +94,7 @@ with tab1:
 
 # ----------- STATISTICS TAB ---------------
 with tab2:
-    st.subheader("Statistics, Judgement, and Histogram")
+    st.subheader("Statistics, Judgement, and Charts")
     csv_buffers = []
 
     for idx, feature in enumerate(st.session_state.feature_data):
@@ -158,17 +158,37 @@ with tab2:
             hide_index=True, use_container_width=True
         )
 
-        st.subheader("Histogram")
-        fig, ax = plt.subplots(figsize=(5, 3))
-        ax.hist(df["Value"], bins=10, edgecolor="black")
-        ax.set_xlabel("Value")
-        ax.set_ylabel("Frequency")
-        if usl is not None:
-            ax.axvline(usl, color="red", linestyle="--", label="USL")
-        if lsl is not None:
-            ax.axvline(lsl, color="red", linestyle="--", label="LSL")
-        ax.legend()
-        st.pyplot(fig)
+        # ==== グラフ2つ横並び ====
+        st.subheader("Charts")
+        graph_cols = st.columns(2)
+
+        # ヒストグラム
+        with graph_cols[0]:
+            st.markdown("**Histogram**")
+            fig1, ax1 = plt.subplots(figsize=(5, 3))
+            ax1.hist(df["Value"], bins=10, edgecolor="black")
+            ax1.set_xlabel("Value")
+            ax1.set_ylabel("Frequency")
+            if usl is not None:
+                ax1.axvline(usl, color="red", linestyle="--", label="USL")
+            if lsl is not None:
+                ax1.axvline(lsl, color="red", linestyle="--", label="LSL")
+            ax1.legend()
+            st.pyplot(fig1)
+
+        # 折れ線グラフ
+        with graph_cols[1]:
+            st.markdown("**Line Chart**")
+            fig2, ax2 = plt.subplots(figsize=(5, 3))
+            ax2.plot(df["No."], df["Value"], marker='o')
+            ax2.set_xlabel("No.")
+            ax2.set_ylabel("Value")
+            if usl is not None:
+                ax2.axhline(usl, color="red", linestyle="--", label="USL")
+            if lsl is not None:
+                ax2.axhline(lsl, color="red", linestyle="--", label="LSL")
+            ax2.legend()
+            st.pyplot(fig2)
 
         out = io.StringIO()
         export_df = df[["No.", "Value", "Result"]]
