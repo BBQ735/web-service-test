@@ -15,7 +15,7 @@ if "feature_data" not in st.session_state:
             "name": f"Feature {i+1}",
             "usl": None,
             "lsl": None,
-            "values": []
+            "values": [None]
         } for i in range(NUM_FEATURES)
     ]
 
@@ -40,18 +40,13 @@ with tab1:
 
         st.markdown("#### Measurement Values")
 
-        # 入力欄のロジック
+        # --- 入力欄描画 ---
         values = feature["values"]
-        max_input_len = len(values)
-        if max_input_len == 0:
-            values.append(None)
-            max_input_len = 1
-
-        for row in range(max_input_len):
+        n_values = len(values)
+        for row in range(n_values):
             input_cols = st.columns([1, 4])
-            v = values[row]
             val = input_cols[1].number_input(
-                f"{feature['name']} #{row+1}", value=v, key=f"feat{idx}_val{row}", format="%.3f", step=0.001, label_visibility="collapsed"
+                f"{feature['name']} #{row+1}", value=values[row], key=f"feat{idx}_val{row}", format="%.3f", step=0.001, label_visibility="collapsed"
             )
             feature["values"][row] = val
 
@@ -72,11 +67,12 @@ with tab1:
             else:
                 input_cols[0].write("")
 
-        # 新規欄を自動追加
-        if (values and values[-1] is not None) and len(values) < MAX_MEASURE:
+        # --- 入力済みが一番下まで埋まったら次を自動追加 ---
+        # （空欄(None)が無ければ追加。MAX_MEASUREまで）
+        if values[-1] is not None and len(values) < MAX_MEASURE:
             feature["values"].append(None)
 
-    st.info("Each feature's measurement values and OK/NG are grouped together for easy input, even on smartphones.")
+    st.info("Press Enter after typing each value to add the next input box instantly.")
 
 # ----------- STATISTICS TAB ---------------
 with tab2:
