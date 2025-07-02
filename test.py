@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import io
 
-st.set_page_config(page_title="Step-by-step Measurement Input", layout="wide")
+st.set_page_config(page_title="Step-by-step Measurement Input", layout="centered")
 
 NUM_FEATURES = 3
 MAX_MEASURE = 30
@@ -26,43 +26,36 @@ with tab1:
     product_no = st.text_input("Product No.", placeholder="e.g. ABC123")
     lot_no = st.text_input("Lot No.", placeholder="e.g. L20240701")
 
-    # --- Feature names and limits (top row, horizontal)
-    feature_cols = st.columns(NUM_FEATURES)
     for idx, feature in enumerate(st.session_state.feature_data):
-        with feature_cols[idx]:
-            st.markdown(f"### {feature['name']}")
-            feature["name"] = st.text_input(
-                f"Feature {idx+1} Name", value=feature["name"], key=f"name_{idx}")
-            col1, col2 = st.columns(2)
-            with col1:
-                feature["usl"] = st.number_input(
-                    "USL", value=feature["usl"], step=0.001, format="%.3f", key=f"usl_{idx}")
-            with col2:
-                feature["lsl"] = st.number_input(
-                    "LSL", value=feature["lsl"], step=0.001, format="%.3f", key=f"lsl_{idx}")
+        st.markdown(f"---\n### {feature['name']}")
+        feature["name"] = st.text_input(
+            f"Feature {idx+1} Name", value=feature["name"], key=f"name_{idx}")
+        col1, col2 = st.columns(2)
+        with col1:
+            feature["usl"] = st.number_input(
+                "USL", value=feature["usl"], step=0.001, format="%.3f", key=f"usl_{idx}")
+        with col2:
+            feature["lsl"] = st.number_input(
+                "LSL", value=feature["lsl"], step=0.001, format="%.3f", key=f"lsl_{idx}")
 
-    st.markdown("#### Measurement Values (Each column = 1 feature, left: judge, right: input)")
+        st.markdown("#### Measurement Values")
 
-    # --- Input grid (add rows downward, 3 features per row)
-    max_input_len = max(len(f["values"]) for f in st.session_state.feature_data)
-    if max_input_len == 0:
-        max_input_len = 1
-        for f in st.session_state.feature_data:
-            f["values"].append(None)
+        # 入力欄のロジック
+        values = feature["values"]
+        max_input_len = len(values)
+        if max_input_len == 0:
+            values.append(None)
+            max_input_len = 1
 
-    for row in range(max_input_len):
-        input_cols = st.columns(NUM_FEATURES)
-        for idx, feature in enumerate(st.session_state.feature_data):
-            while len(feature["values"]) <= row:
-                feature["values"].append(None)
-            v = feature["values"][row]
-            col_judge, col_input = input_cols[idx].columns([1, 3])
-            val = col_input.number_input(
+        for row in range(max_input_len):
+            input_cols = st.columns([1, 4])
+            v = values[row]
+            val = input_cols[1].number_input(
                 f"{feature['name']} #{row+1}", value=v, key=f"feat{idx}_val{row}", format="%.3f", step=0.001, label_visibility="collapsed"
             )
             feature["values"][row] = val
 
-            # --- OK/NG Judge ---
+            # OK/NG判定
             judge = "-"
             if val is not None:
                 ok = True
@@ -72,24 +65,18 @@ with tab1:
                     ok = False
                 judge = "OK" if ok else "NG"
                 color = "green" if ok else "red"
-                col_judge.markdown(
+                input_cols[0].markdown(
                     f"<span style='color:{color};font-weight:bold'>{judge}</span>",
                     unsafe_allow_html=True
                 )
             else:
-                col_judge.write("")
+                input_cols[0].write("")
 
-        # --- Add new row if any value is filled (until MAX_MEASURE) ---
-        if row == max_input_len - 1 and any(
-            feature["values"][row] is not None and row+1 < MAX_MEASURE
-            for feature in st.session_state.feature_data
-        ):
-            for feature in st.session_state.feature_data:
-                if len(feature["values"]) < row+2:
-                    feature["values"].append(None)
-            max_input_len += 1
+        # 新規欄を自動追加
+        if (values and values[-1] is not None) and len(values) < MAX_MEASURE:
+            feature["values"].append(None)
 
-    st.info("Enter measurement values for each feature (columns). New row will appear as you fill in.")
+    st.info("Each feature's measurement values and OK/NG are grouped together for easy input, even on smartphones.")
 
 # ----------- STATISTICS TAB ---------------
 with tab2:
