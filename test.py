@@ -4,13 +4,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import io
 import re
-import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Step-by-step Measurement Input", layout="centered")
 
 NUM_FEATURES = 3
 MAX_MEASURE = 30
-feature_ids = [f"feature{idx+1}" for idx in range(NUM_FEATURES)]
 
 if "feature_data" not in st.session_state:
     st.session_state.feature_data = [
@@ -22,56 +20,8 @@ if "feature_data" not in st.session_state:
         } for i in range(NUM_FEATURES)
     ]
 
-# --- Stickyヘッダー部（HTML+CSS+Streamlitのボタン） ---
-st.markdown("""
-<style>
-.sticky-jump {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    background: #fafbfc;
-    z-index: 9999;
-    padding: 0.5em 0 0.5em 0;
-    border-bottom: 1px solid #eee;
-}
-.sticky-jump-inner {
-    display: flex;
-    justify-content: center;
-    gap: 1.5em;
-}
-.sticky-padding {height: 62px;} /* 高さはsticky-jumpと合わせて調整 */
-</style>
-<div class="sticky-jump">
-  <div class="sticky-jump-inner" id="sticky-buttons">
-    <!-- Streamlit Buttons will be inserted here -->
-  </div>
-</div>
-<div class="sticky-padding"></div>
-""", unsafe_allow_html=True)
-
-# --- Sticky部内にStreamlitボタンを配置 ---
-col_space = st.container()
-with col_space:
-    cols = st.columns(NUM_FEATURES)
-    jump_triggered = None
-    for idx, fid in enumerate(feature_ids):
-        if cols[idx].button(f"Jump to {st.session_state.feature_data[idx]['name']}", key=f"sticky_jump_{idx}"):
-            jump_triggered = fid
-
-    if jump_triggered is not None:
-        st.experimental_set_query_params(jump=jump_triggered)
-        st.experimental_rerun()
-
-# --- ページロード時にquery_paramsを読んでジャンプする ---
-query = st.experimental_get_query_params()
-if "jump" in query:
-    components.html(f"""
-    <script>
-        document.getElementById('{query['jump'][0]}').scrollIntoView({{behavior: 'instant', block: 'start'}});
-    </script>
-    """, height=0)
-    st.experimental_set_query_params()
-
 st.title("📏 Step-by-step Measurement Input Tool (30 fields by default)")
+
 tab1, tab2 = st.tabs(["Input", "Statistics & Chart"])
 
 with tab1:
@@ -79,7 +29,6 @@ with tab1:
     lot_no = st.text_input("Lot No.", placeholder="e.g. L20240701")
 
     for idx, feature in enumerate(st.session_state.feature_data):
-        st.markdown(f'<a id="{feature_ids[idx]}"></a>', unsafe_allow_html=True)
         st.markdown(f"---\n### {feature['name']}")
         feature["name"] = st.text_input(
             f"Feature {idx+1} Name", value=feature["name"], key=f"name_{idx}")
@@ -99,20 +48,25 @@ with tab1:
         st.markdown("#### Measurement Values")
         values = feature["values"]
 
+        # --- 入力欄のループ ---
         for row in range(len(values)):
             input_cols = st.columns([1, 1, 4])  # No, Judge, Value
             input_cols[0].markdown(f"No.{row+1}")
             input_key = f"feat{idx}_val{row}"
             val = st.session_state.get(input_key, values[row])
 
+            # 数値入力欄
             input_val = input_cols[2].text_input(
                 f"{feature['name']} #{row+1}",
                 value=val,
                 key=input_key,
                 label_visibility="collapsed"
             )
+
+            # 値を保存
             feature["values"][row] = input_val
 
+            # OK/NG判定またはエラー
             if input_val.strip() == "":
                 input_cols[1].write("")
             elif not re.match(r'^-?\d+(\.\d+)?$', input_val):
@@ -132,12 +86,13 @@ with tab1:
                     f"<span style='color:{color};font-weight:bold'>{judge}</span>", unsafe_allow_html=True
                 )
 
-        if len(values) < 100:
+        # ＋ボタンで追加可能（MAX_MEASURE+）
+        if len(values) < 100:  # 上限は任意、必要に応じて調整
             add_key = f"add_row_{idx}"
             if st.button("＋ Add Row", key=add_key):
                 feature["values"].append("")
 
-    st.info("30 input fields are shown by default. Click ＋ Add Row to add more. Use Jump buttons for quick scroll.")
+    st.info("30 input fields are shown by default. Click ＋ Add Row to add more. No. is always displayed.")
 
 # ----------- STATISTICS TAB ---------------
 with tab2:
@@ -145,6 +100,7 @@ with tab2:
     csv_buffers = []
 
     for idx, feature in enumerate(st.session_state.feature_data):
+        # Only valid numeric entries
         valid_nums = []
         for v in feature["values"]:
             try:
